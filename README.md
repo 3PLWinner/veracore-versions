@@ -1,5 +1,5 @@
 # Order Upload with Version
-This is Streamlit app that allows a customer to upload a CSV of orders with the version number and upload that to VeraCore. 
+This is Streamlit app that allows a customer to upload a CSV of orders with the version number and create orders in VeraCore. 
 
 ## Table of Contents
 
