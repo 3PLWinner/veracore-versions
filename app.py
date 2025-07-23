@@ -1,21 +1,52 @@
 import os
-import io
+import re
 import requests
 import json
 import datetime
 import csv
 import base64
 import pandas as pd
+import streamlit as st
 from io import StringIO
 from dotenv import load_dotenv
-import streamlit as st
-
+from msal import ConfidentialClientApplication
   
 load_dotenv()
 
+# Application Client ID
+client_id = os.getenv("CLIENT_ID")
+# Tenant ID for Microsoft Entra
+tenant_id = os.getenv("TENANT_ID")
+# Secret value generated in the application
+client_secret = os.getenv("ENTRA_CLIENT_SECRET")
+# Scope
+scope = os.getenv("SCOPE")
+# Authority
+authority = f"https://login.microsoftonline.com/{tenant_id}"
+
+# Resideo user id
+reporting_id = os.getenv("USER")
+# Resideo inbox id
+inbox_id = os.getenv("INBOX_FOLDER")
+
+# VeraCore Web User/Pass/System
+veracore_id = os.getenv("VERACORE_USER")
+veracore_pass = os.getenv("VERACORE_PASS")
+
+# Converts date to a string VeraCore can use
+def convert_date(date_string: str):
+
+    first_pattern = re.compile(r"[0-9]{4}[0-9]{2}[0-9]{2}")
+
+    second_pattern = re.compile(r"[0-9]{2}/[0-9]{2}/[0-9]{4}")
+
+    if first_pattern.search(date_string):
+        return datetime.datetime.strptime(date_string,"%Y%m%d").strftime("%Y-%m-%dT%H:%M:%S")
+    elif second_pattern.search(date_string):
+        return datetime.datetime.strptime(date_string,"%m/%d/%Y").strftime("%Y-%m-%dT%H:%M:%S")
+
 # Escapes string for XML
 def generate_escaped(string =""):
-
         if "&" in string:
             return string.replace("&","&amp;")
         elif "<" in string:
@@ -23,6 +54,14 @@ def generate_escaped(string =""):
         else:
             return string
 
+# Writes Microsoft errors to error log
+def write_to_log(text):
+    path = os.getcwd()
+    with open(path+"/"+"errors.txt", "a") as file:
+        file.write(datetime.datetime.now().strftime("--------%m-%d-%yT%H:%M:%S----------------\n\n"))
+        file.write(text)
+
+# Group Order Dataframe
 def process_df(df):
     
     # Group by Delivery Number, Product ID, and aggregate the Quantity
@@ -52,13 +91,15 @@ def process_df(df):
     
     return df
 
+        
 # Orders class to generate XML API calls to VeraCore
 class Orders:
     offers = []
+    versions = []
     purchase_orders = []
     
-    def __init__(self, user, passw, order_id= None):
-        self.order_id = order_id
+    def __init__(self, user : str, passw, order_id= None):
+        self.order_id : str= order_id
         self.offers = []
         self.user_id = user
         self.password = passw
@@ -80,28 +121,38 @@ class Orders:
                                 <ID>{generate_escaped(offer[9])}</ID>
                             </Header>
                         </Offer>
-                        <Quantity>{int(offer[10])}</Quantity>
+                        <Quantity>{int(offer[11])}</Quantity>
                         <OrderShipTo>
                             <Key>1</Key>
                         </OrderShipTo>
                     </OfferOrdered>"""
             offer_string += new_offer
+            
+            version_json = {
+                "productId" : f"{offer[9]}",
+                "quantityToShip" : int(offer[11])
+            }
+
+            if not(offer[10] == ""):
+                version_json["version"] = offer[10]
+
+            self.versions.append(version_json)
 
             # Adds all the purchase order numbers to one string
-            if not(offer[11] in self.purchase_orders):
+            if not(offer[12] in self.purchase_orders) and len(purchase_order_string) <= 50:
                 
                 if index == len(self.offers)-1:
-                    purchase_order_string += str(offer[11])
+                    purchase_order_string += str(offer[12])
                 else:
-                    purchase_order_string += str(offer[11]) + ","
+                    purchase_order_string += str(offer[12]) + ","
                 
-                self.purchase_orders.append(offer[11])
+                self.purchase_orders.append(offer[12])
         
 
         return offer_string, purchase_order_string
     
     # Generates XML needed for VeraCore SOAP API Add Orders endpoint
-    def generate_xml(self):
+    def generate_order_xml(self):
         offer_string, purchase_order_string = self.private_generate_offer_xml()
 
         return f"""<?xml version="1.0" encoding="utf-8"?>
@@ -122,16 +173,10 @@ class Orders:
                     <order>
                         <Header>
                             <ID>{self.order_id}</ID>
-                            <EntryDate>2025-07-16T00:00:00</EntryDate>
+                            <EntryDate>{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}</EntryDate>
                             <Comments>{generate_escaped(self.offers[0][13])}</Comments>
                             <ReferenceNumber>{generate_escaped(purchase_order_string)}</ReferenceNumber>
                         </Header>
-                        <Shipping>
-                            <FreightCarrier>
-                                <Name>{generate_escaped(self.offers[0][12])}</Name>
-                            </FreightCarrier>
-                            <NeededBy>{self.offers[0][15]}</NeededBy>
-                        </Shipping>
                         <Money></Money>
                         <Payment></Payment>
                         <OrderedBy>
@@ -140,9 +185,9 @@ class Orders:
                             <Address2>{generate_escaped(self.offers[0][3])}</Address2>
                             <Address3>{generate_escaped(self.offers[0][4])}</Address3>
                             <City>{generate_escaped(self.offers[0][5])}</City>
-                            <State>{self.offers[0][6]}</State>
-                            <PostalCode>{self.offers[0][7]}</PostalCode>
-                            <Country>{self.offers[0][8]}</Country>
+                            <State>{generate_escaped(self.offers[0][6])}</State>
+                            <PostalCode>{generate_escaped(self.offers[0][7])}</PostalCode>
+                            <Country>{generate_escaped(self.offers[0][8])}</Country>
                         </OrderedBy>
                         <ShipTo>
                             <OrderShipTo>
@@ -161,6 +206,306 @@ class Orders:
             </soap:Body>
         </soap:Envelope>
         """
+    
+    def generate_version_json(self):
+        return json.dumps({
+            "orderId" : self.order_id,
+            "warehouseId" : "3plwhs",
+            "holdShippingOrder" : False,
+            "products" : self.versions
+        })
+
+class Email:
+    email_id = None
+    # Email JSON needed for Microsoft Graph API
+
+    email_json =  {
+        "subject" : "Inbound Version  Order Errors",
+        "body":{
+            "contentType" : "HTML",
+        },
+    }
+
+    # Empty method
+    def generate_email():
+        return ""
+
+# Child of Email class for Error Email
+class ErrorEmail(Email):
+    # A dictionary that uses order ID for keys and error text for value
+    error_dict = {}
+    hasError = False
+
+    def __init__(self):
+        self.offers = []
+
+        # Sends this to the ITs email
+        self.email_json["toRecipients"] = [
+            {
+                "emailAddress" : {
+                    "address" : "reporting@3plwinner.com"
+                }
+            }
+        ]
+
+    # Add error message to the error_dict under the order id
+    def add_to_body(self, order_id, error_message):
+
+        if not(self.error_dict.get(order_id) is None):
+            self.error_dict[order_id] += "\n\n"
+            self.error_dict[order_id] += error_message
+        else:
+            self.error_dict[order_id] = error_message
+
+    def generate_email(self):
+
+        date_string = datetime.datetime.now().strftime("%m-%d-%Y at %H:%M")
+
+        # Adds new subject to error email
+        self.email_json["subject"] = f"Inbound Version Order Errors {date_string}"
+
+        body_html = ""
+
+        # Iterates through the order ids and creates the html for an error code
+        for order in self.error_dict.keys():
+            errors = self.error_dict[order]
+
+            body_html += f"<p><u>The order with ID {order}</u><p>"
+            body_html += f"<p>Had the following errors:<p>"
+            body_html += f"<p>{errors}</p>"
+            body_html += "<br>"
+        
+        # Adds to the body of the email JSON
+        self.email_json['body']['content'] = body_html
+        
+        return self.email_json
+
+    # Adds offers 
+    def add_offers(self, offers):     
+        for offer in offers:
+            self.offers.append(offer)
+    
+    # Generates bytes for CSV attachment
+    def generate_error_bytes(self):
+        # Inserts the headers as the first tuple
+        self.offers.insert(0,('Delivery Number', 'Company Name/Contact Name', 'Address 1', 'Address 2', 'Address 3',
+             'City', 'State', 'Postal Code', 'Country', 'Product ID', 'Quantity', 'Sales Order',
+             'Shipping Conditions', 'Delivery Instructions', 'Carrier', 'Planned Ship Date'))
+
+        # Creates an IO object and adds it to the CSV writer
+        attachment_string = StringIO()
+
+        csv_writer = csv.writer(attachment_string)
+
+        # Writes each tuple in csv format
+        for offer in self.offers:
+            csv_writer.writerow(offer)
+
+        csv_string = attachment_string.getvalue()
+
+        # Encodes to base64 and gets the string to add to the JSON body
+        encoded_csv = base64.b64encode(csv_string.encode("utf-8"))
+        encoded_string = encoded_csv.decode("utf-8")
+
+        attachment_string.close()
+
+        return encoded_string
+
+class ErrorObject:
+    
+    def __init__(self):
+        self.is_error = False
+        self.error_text = ""
+
+
+# Gets authorization token for VeraCore REST API 
+def get_auth(user :str, passw : str):
+    endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/Login'
+
+    body = {
+        "userName" : user,
+        "password" : passw,
+        "systemId" : "cus327"
+    }
+
+    response = requests.post(endpoint, data=body)
+
+    if response.status_code == 403:
+        return ({}, False)
+
+    token = response.json()["Token"]
+
+    os.environ["TOKEN"] = token
+
+    auth_header = {
+        "Authorization" : "bearer "+ token
+    }
+
+    return (auth_header, True)
+
+def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error_obj : ErrorObject):
+
+    auth_header["Content-Type"] = "application/json"
+
+    endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
+
+    response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
+
+
+    if not(response.status_code == 200):
+        # If error we want to add the offers to the error email
+        error_email.add_offers(orders.offers)
+
+        error_text = response.json()["Error"]
+        print(error_text)
+
+        error_email.add_to_body(orders.order_id, error_text)
+
+        # Marks that there was an error and to send an email
+        error_email.hasError = True
+
+        error_obj.is_error = True
+        error_obj.error_text = "There was an issue changing the version of your order. The orders have now been sent to IT to investigate and upload."
+
+
+
+# Makes API calls to create orders in VeraCore
+def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObject):
+
+    # Needs to be text/xml to work
+    headers = {
+        "Content-Type" : "text/xml"
+    }
+
+    response = requests.post("https://rhu335.veracore.com/pmomsws/OMS.asmx", headers=headers, data=orders.generate_order_xml())
+
+    if response.status_code > 299:
+        # If error we want to add the offers to the error email
+        error_email.add_offers(orders.offers)
+        error_text = response.text
+        print(error_text)
+        split_string = error_text.split("System.Exception:")[-1]
+        api_error = split_string.split("at")[0]
+        if "already exists" in api_error:
+            auth_header, was_successful = get_auth(orders.user_id, orders.password)
+
+            if was_successful:
+                change_version(orders,error_email,auth_header, error_obj)
+            else:
+                error_obj.is_error = True
+                error_obj.error_text = "Invalid Credentials"
+        else:
+            error_email.add_to_body(orders.order_id, api_error)
+
+            # Marks that there was an error and to send an email
+            error_email.hasError = True
+
+            error_obj.is_error = True
+            error_obj.error_text = "There was an issue with one or more of your orders. The orders have now been sent to IT to investigate and upload."
+    
+    else:
+        auth_header, was_successful = get_auth(orders.user_id, orders.password)
+
+        if was_successful:
+            change_version(orders,error_email,auth_header, error_obj)
+        else:
+            error_obj.is_error = True
+            error_obj.error_text = "Invalid Credentials"
+        
+        
+def submit_orders(uploaded_df, error_obj : ErrorObject):
+
+    api_df = process_df(uploaded_df)
+
+    order_tuples = api_df.itertuples()
+
+    orders = Orders(user_id,passer,None)
+    error_email = ErrorEmail()
+
+    for order in order_tuples:
+
+        # If the orders object is blank add order id
+        if orders.order_id is None:
+            orders.order_id = order[0]
+
+        # If order IDs match add lines to the offers, otherwise send the API call and start on the next set of lines
+        if orders.order_id == order[0]:
+            orders.add_to_offers(order)
+        else:    
+            create_orders(orders,error_email, error_obj)
+
+            orders = Orders(user_id,passer,order[0])
+            orders.add_to_offers(order)
+        
+        create_orders(orders, error_email, error_obj)
+    
+    return error_email
+
+# Generates an Outlook Draft email
+def generate_outlook_email(user_id, email : Email, auth_header):
+    generate_email_endpoint = f"https://graph.microsoft.com/v1.0/users/{user_id}/messages/"
+
+    email_json = email.generate_email()
+
+    response = requests.post(generate_email_endpoint, headers=auth_header, data=json.dumps(email_json))
+
+    # If request is unsuccessful write to error log, otherwise return the draft id
+    if not(response.status_code == 201):
+        write_to_log(response.text)
+        print(f"Draft wasn't created")
+        return None
+    else:
+        print(f"Create draft : {response.status_code}")
+        return response.json()["id"]
+
+# Sends an Outlook draft
+def send_outlook_email(user_id, draft_id, auth_header):
+    send_draft_endpoint = f"https://graph.microsoft.com/v1.0/users/{user_id}/messages/{draft_id}/send"
+
+    response = requests.post(send_draft_endpoint, headers=auth_header)
+
+    # If the request isn't successful write to a log
+    if not(response.status_code == 202):
+        write_to_log(response.text)
+        print(f"Email wasn't sent")
+    else:
+        print(f"Send email : {response.status_code}")
+
+# Creates a CSV attachment for a draft
+def generate_attachment(user_id, email_id,csv_string, auth_header):
+    attachment_endpoint = f"https://graph.microsoft.com/v1.0/users/{user_id}/messages/{email_id}/attachments"
+
+    attachment_body = {
+    "@odata.type": "#microsoft.graph.fileAttachment",
+    "name": "ErrorOffer.csv",
+    "contentType": "text/csv",
+    "contentBytes": csv_string
+    }
+
+    response = requests.post(attachment_endpoint,headers=auth_header, data=json.dumps(attachment_body))
+
+    # If request is not successful write to log
+    if not(response.status_code == 201):
+        write_to_log(response.text)
+        print(f"Attachment wasn't created")
+    else:
+        print(f"Create attachment : {response.status_code}")
+
+# Create a confidential application to verify with MSAL
+app = ConfidentialClientApplication(
+    client_id=client_id,
+    client_credential = client_secret,
+    authority=authority
+)
+
+# Get OAuth token for application
+result = app.acquire_token_for_client(scopes=[scope])
+
+# Create auth header
+masl_auth_header = {
+    "Authorization" : f"Bearer {result["access_token"]}",
+    "Content-Type" : "application/json"
+}
 
 # Credentials Prompt
 st.text("1. Provide your web user credentials")
@@ -173,6 +518,8 @@ if user_id == "" or passer == "":
     st.text("")
     st.text("")
     st.error("Please input the credentials needed as a web user", icon=":material/warning:")
+
+
 
 st.text("")
 st.text("")
@@ -197,30 +544,66 @@ st.text("")
 uploaded_file = st.file_uploader('Upload your Order CSV file with Versions', type=['csv'])
 
 if not(uploaded_file == None):
-    uploaded_df = pd.read_csv(uploaded_file)
+
+    uploaded_df = pd.read_csv(uploaded_file, dtype={"Postal Code" :str})
     uploaded_headers = uploaded_df.columns.to_list()
 
     st.text("")
     st.text("")
     headers_text = "The following headers are missing: \n\n"
-    isHeaderMissing = False
+    is_header_missing = False
     for header in headers:
         if not(header in uploaded_headers):
             headers_text += f"{header} \n"
-            isHeaderMissing = True
+            is_header_missing = True
 
     headers_text += "\nPlease upload the CSV with the correct headers."
 
-    if isHeaderMissing:
+    if is_header_missing:
         st.error(headers_text, icon=":material/warning:")
     else:
         order_df = uploaded_df[["Order ID", "Offer ID", "Version", "Quantity"]]
         st.text("Summarized Order Upload")
         st.dataframe(order_df)
 
-        api_df = process_df(uploaded_df)
+        st.text("")
+        st.text("")
+        st.text("")
+        ready = st.button("Submit")
+        
+        
+        error_obj = ErrorObject()
 
-        order_rows = api_df.itertuples()
+        if ready:
+            error_email = submit_orders(uploaded_df, error_obj)
+
+            if error_obj.is_error:
+                st.text("")
+                st.text("")
+                st.text("")
+                st.error(error_obj.error_text, icon=":material/warning:")
+
+                if error_email.hasError:
+                    # Generate error email
+                    email_id = generate_outlook_email(reporting_id,error_email,masl_auth_header)
+
+                    if email_id:
+
+                        # Generate error attachment
+                        generate_attachment(reporting_id,email_id,error_email.generate_error_bytes(),masl_auth_header)
+
+                        # Send the email
+                        send_outlook_email(reporting_id,email_id,masl_auth_header)
+
+            else:
+                st.text("")
+                st.text("")
+                st.text("")
+                st.success("Your orders have been successfully uploaded with the correct version!")
+            
+
+        
+            
 
     
 
