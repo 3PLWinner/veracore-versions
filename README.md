@@ -28,6 +28,8 @@ yourenv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+3. Create the errors.txt log
+
 If you want to run the streamlit app:
 ```bash
 python -m streamlit run app.py
