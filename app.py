@@ -357,7 +357,6 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
         error_email.add_offers(orders.offers)
 
         error_text = response.json()["Error"]
-        print(error_text)
 
         error_email.add_to_body(orders.order_id, error_text)
 
@@ -380,20 +379,23 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
     response = requests.post("https://rhu335.veracore.com/pmomsws/OMS.asmx", headers=headers, data=orders.generate_order_xml())
 
     if response.status_code > 299:
-        # If error we want to add the offers to the error email
+        # If error, we want to add the offers to the error email
         error_email.add_offers(orders.offers)
         error_text = response.text
-        print(error_text)
         split_string = error_text.split("System.Exception:")[-1]
         api_error = split_string.split("at")[0]
+
+        # If the order already exists you just change the selected version on the order
         if "already exists" in api_error:
             auth_header, was_successful = get_auth(orders.user_id, orders.password)
-
+            
+            # If the auth was successful try to change the versions
             if was_successful:
                 change_version(orders,error_email,auth_header, error_obj)
             else:
                 error_obj.is_error = True
                 error_obj.error_text = "Invalid Credentials"
+        # Add the credential error to the email and add the error text to the object
         else:
             error_email.add_to_body(orders.order_id, api_error)
 
@@ -402,7 +404,7 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 
             error_obj.is_error = True
             error_obj.error_text = "There was an issue with one or more of your orders. The orders have now been sent to IT to investigate and upload."
-    
+    # Otherwise adding was successful and follow the same path
     else:
         auth_header, was_successful = get_auth(orders.user_id, orders.password)
 
@@ -411,15 +413,19 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
         else:
             error_obj.is_error = True
             error_obj.error_text = "Invalid Credentials"
-        
-        
+
+# Call back function/button submit function. Returns error email
 def submit_orders(uploaded_df, error_obj : ErrorObject):
 
     api_df = process_df(uploaded_df)
 
+    # Get tuples to iterate through
     order_tuples = api_df.itertuples()
 
+    # Create the first Orders object
     orders = Orders(user_id,passer,None)
+
+    # Create an error email
     error_email = ErrorEmail()
 
     for order in order_tuples:
@@ -434,6 +440,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
         else:    
             create_orders(orders,error_email, error_obj)
 
+            # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
         
@@ -475,6 +482,7 @@ def send_outlook_email(user_id, draft_id, auth_header):
 def generate_attachment(user_id, email_id,csv_string, auth_header):
     attachment_endpoint = f"https://graph.microsoft.com/v1.0/users/{user_id}/messages/{email_id}/attachments"
 
+    # Attachment JSON needed
     attachment_body = {
     "@odata.type": "#microsoft.graph.fileAttachment",
     "name": "ErrorOffer.csv",
@@ -514,10 +522,23 @@ st.text("1. Provide your web user credentials")
 user_id = st.text_input("Web User ID")
 passer = st.text_input("Web User Pass", type="password")
 
+# Generate error if they have not submitted credentials
 if user_id == "" or passer == "":
     st.text("")
     st.text("")
     st.error("Please input the credentials needed as a web user", icon=":material/warning:")
+else:
+    # Allows them to test their web credentials before submitting their orders
+    st.text("")
+    test = st.button(label="Test Credentials")
+
+    if test:
+        _,is_user = get_auth(user_id,passer)
+
+        if is_user:
+            st.success("These credentials work")
+        else:
+            st.error("There was an issue with these credentials")
 
 
 
@@ -531,27 +552,33 @@ st.text("2. Upload your CSV")
 # Header Text 
 st.text("Your headers should include in order from 0->12:")
 
+# Headers needed for the CSV
 headers = ['Order ID', 'Company Name', 'Address 1', 'Address 2', 'Address 3',
              'City', 'State', 'Postal Code', 'Country', 'Offer ID',"Version", 'Quantity', 'Reference #',
             'Order Comments']
-
 
 st.table(headers)
 
 st.text("")
 st.text("")
+
 # File upload
 uploaded_file = st.file_uploader('Upload your Order CSV file with Versions', type=['csv'])
 
 if not(uploaded_file == None):
 
+    # Read uploaded CSV to a panda
     uploaded_df = pd.read_csv(uploaded_file, dtype={"Postal Code" :str})
+    
+    # Get headers to check
     uploaded_headers = uploaded_df.columns.to_list()
 
     st.text("")
     st.text("")
     headers_text = "The following headers are missing: \n\n"
     is_header_missing = False
+
+    # Check to see if any column headers are missing
     for header in headers:
         if not(header in uploaded_headers):
             headers_text += f"{header} \n"
@@ -559,9 +586,11 @@ if not(uploaded_file == None):
 
     headers_text += "\nPlease upload the CSV with the correct headers."
 
+    # If any are display error text
     if is_header_missing:
         st.error(headers_text, icon=":material/warning:")
     else:
+        # Otherwise display the summarized order import
         order_df = uploaded_df[["Order ID", "Offer ID", "Version", "Quantity"]]
         st.text("Summarized Order Upload")
         st.dataframe(order_df)
@@ -569,14 +598,17 @@ if not(uploaded_file == None):
         st.text("")
         st.text("")
         st.text("")
+        # Generate boolean when the button is clicked
         ready = st.button("Submit")
         
-        
+        # Create an error object to use in the on the ready function
         error_obj = ErrorObject()
-
+        
         if ready:
+            # If button is clicked try submitting orders
             error_email = submit_orders(uploaded_df, error_obj)
 
+            # If an error was found show error text and generate email with the orders
             if error_obj.is_error:
                 st.text("")
                 st.text("")
@@ -594,7 +626,8 @@ if not(uploaded_file == None):
 
                         # Send the email
                         send_outlook_email(reporting_id,email_id,masl_auth_header)
-
+            
+            # Otherwise display  success text
             else:
                 st.text("")
                 st.text("")
