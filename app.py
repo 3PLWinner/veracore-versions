@@ -174,7 +174,7 @@ class Orders:
                         <Header>
                             <ID>{self.order_id}</ID>
                             <EntryDate>{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}</EntryDate>
-                            <Comments>{generate_escaped(self.offers[0][12])}</Comments>
+                            <Comments>{generate_escaped(self.offers[0][13])}</Comments>
                             <ReferenceNumber>{generate_escaped(purchase_order_string)}</ReferenceNumber>
                         </Header>
                         <Money></Money>
@@ -201,6 +201,11 @@ class Orders:
                         <Offers>
                             {offer_string} 
                         </Offers>
+                        <ShippingSuggestions>
+                            <ShippingSuggestion>
+                                <Carrier>{generate_escaped(self.offers[0][14])}</Carrier>
+                            </ShippingSuggestion>
+                        </ShippingSuggestions>
                     </order>
                 </AddOrder>
             </soap:Body>
