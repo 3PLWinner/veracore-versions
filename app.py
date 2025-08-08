@@ -201,11 +201,6 @@ class Orders:
                         <Offers>
                             {offer_string} 
                         </Offers>
-                        <ShippingSuggestions>
-                            <ShippingSuggestion>
-                                <Carrier>{generate_escaped(self.offers[0][14])}</Carrier>
-                            </ShippingSuggestion>
-                        </ShippingSuggestions>
                     </order>
                 </AddOrder>
             </soap:Body>
