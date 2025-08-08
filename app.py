@@ -112,7 +112,7 @@ class Orders:
 
         offer_string = ""
         purchase_order_string = ""
-
+        self.versions = []
         for index, offer in enumerate(self.offers):
 
             new_offer = f"""
