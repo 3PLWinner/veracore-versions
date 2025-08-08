@@ -175,20 +175,20 @@ class Orders:
                         <Header>
                             <ID>{self.order_id}</ID>
                             <EntryDate>{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}</EntryDate>
-                            <Comments>{generate_escaped(self.offers[0][13])}</Comments>
+                            <Comments>{generate_escaped(self.offers[0]._13)}</Comments>
                             <ReferenceNumber>{generate_escaped(purchase_order_string)}</ReferenceNumber>
                         </Header>
                         <Money></Money>
                         <Payment></Payment>
                         <OrderedBy>
-                            <CompanyName>{generate_escaped(self.offers[0][1])}</CompanyName>
-                            <Address1>{generate_escaped(self.offers[0][2])}</Address1>
-                            <Address2>{generate_escaped(self.offers[0][3])}</Address2>
-                            <Address3>{generate_escaped(self.offers[0][4])}</Address3>
-                            <City>{generate_escaped(self.offers[0][5])}</City>
-                            <State>{generate_escaped(self.offers[0][6])}</State>
-                            <PostalCode>{generate_escaped(self.offers[0][7])}</PostalCode>
-                            <Country>{generate_escaped(self.offers[0][8])}</Country>
+                            <CompanyName>{generate_escaped(self.offers[0]._1)}</CompanyName>
+                            <Address1>{generate_escaped(self.offers[0]._2)}</Address1>
+                            <Address2>{generate_escaped(self.offers[0]._3)}</Address2>
+                            <Address3>{generate_escaped(self.offers[0]._4)}</Address3>
+                            <City>{generate_escaped(self.offers[0].City)}</City>
+                            <State>{generate_escaped(self.offers[0].State)}</State>
+                            <PostalCode>{generate_escaped(self.offers[0]._7)}</PostalCode>
+                            <Country>{generate_escaped(self.offers[0].Country)}</Country>
                         </OrderedBy>
                         <ShipTo>
                             <OrderShipTo>
@@ -202,6 +202,11 @@ class Orders:
                         <Offers>
                             {offer_string} 
                         </Offers>
+                        <ShippingSuggestions>
+                            <ShippingSuggestion>
+                                <Carrier>{generate_escaped(self.offers[0]._14)}</Carrier>
+                            </ShippingSuggestion>
+                        </ShippingSuggestions>
                     </order>
                 </AddOrder>
             </soap:Body>
