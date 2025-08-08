@@ -201,6 +201,11 @@ class Orders:
                         <Offers>
                             {offer_string} 
                         </Offers>
+                        <ShippingSuggestions>
+                            <ShippingSuggestion>
+                                <Carrier>{generate_escaped(self.offers[0][13] if len(self.offers[0]) > 13 else "")}</Carrier>
+                            </ShippingSuggestion>
+                        </ShippingSuggestions>
                     </order>
                 </AddOrder>
             </soap:Body>
