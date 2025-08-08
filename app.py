@@ -357,7 +357,7 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     print(f"Version JSON: {orders.generate_version_json()}")
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
 
-
+    print(f"Response status: {response.status_code}, Response: {response.text}")
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
