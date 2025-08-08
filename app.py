@@ -201,11 +201,6 @@ class Orders:
                         <Offers>
                             {offer_string} 
                         </Offers>
-                        <ShippingSuggestions>
-                            <ShippingSuggestion>
-                                <Carrier>{generate_escaped(self.offers[0][13] if len(self.offers[0]) > 13 else "")}</Carrier>
-                            </ShippingSuggestion>
-                        </ShippingSuggestions>
                     </order>
                 </AddOrder>
             </soap:Body>
@@ -360,10 +355,8 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
-        try:
-            error_text = response.json()["Error"]
-        except:
-            error_text = response.text
+        error_text = response.json()["Error"]
+
 
         error_email.add_to_body(orders.order_id, error_text)
 
