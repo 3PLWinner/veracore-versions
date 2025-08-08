@@ -204,7 +204,7 @@ class Orders:
                         </Offers>
                         <ShippingSuggestions>
                             <ShippingSuggestion>
-                                <Carrier>{generate_escaped(self.offers[0]._14)}</Carrier>
+                                <Carrier>Standard</Carrier>
                             </ShippingSuggestion>
                         </ShippingSuggestions>
                     </order>
