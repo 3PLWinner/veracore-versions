@@ -424,34 +424,27 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 def submit_orders(uploaded_df, error_obj : ErrorObject):
 
     api_df = process_df(uploaded_df)
-
-    # Get tuples to iterate through
     order_tuples = api_df.itertuples()
-
-    # Create the first Orders object
-    orders = Orders(user_id,passer,None)
-
-    # Create an error email
+    orders = None
     error_email = ErrorEmail()
+    last_order_id = None
 
     for order in order_tuples:
-
-        # If the orders object is blank add order id
-        if orders.order_id is None:
-            orders.order_id = order[0]
-
-        # If order IDs match add lines to the offers, otherwise send the API call and start on the next set of lines
-        if orders.order_id == order[0]:
+        current_order_id = order[0]
+        if orders is None:
+            orders = Orders(user_id, passer, current_order_id)
+        if last_order_id is None or current_order_id == last_order_id:
             orders.add_to_offers(order)
-        else:    
-            create_orders(orders,error_email, error_obj)
-
-            # Create new orders object after creating order
-            orders = Orders(user_id,passer,order[0])
+        else:
+            create_orders(orders, error_email, error_obj)
+            orders = Orders(user_id, passer, current_order_id)
             orders.add_to_offers(order)
-        
+        last_order_id = current_order_id
+
+    # After the loop, submit the last order
+    if orders and orders.offers:
         create_orders(orders, error_email, error_obj)
-    
+
     return error_email
 
 # Generates an Outlook Draft email
