@@ -114,6 +114,7 @@ class Orders:
         purchase_order_string = ""
 
         for index, offer in enumerate(self.offers):
+            print(f"Offer tuple length: {len(offer)}, content: {offer}")
             new_offer = f"""
                     <OfferOrdered>
                         <Offer>
