@@ -108,38 +108,55 @@ class Orders:
 
     # Iterates through added offers and creates the offer XML to be added
     def private_generate_offer_xml(self):
+        offer_versions = {}
+
+        for offer in self.offers:
+            offer_id = offer[9]
+            quantity = int(offer[11])
+            version = offer[10]
+
+            if offer_id not in offer_versions:
+                offer_versions[offer_id] = {"quantity": 0, "version": version}
+    
+    # Add quantity
+            offer_versions[offer_id]["quantity"] += quantity
+
+    # Update version if different and not empty
+            if version and version != offer_versions[offer_id]["version"]:
+                offer_versions[offer_id]["version"] = version
+
+
 
         offer_string = ""
         purchase_order_string = ""
-
         self.versions = []  # reset per call
-        self.purchase_orders = []
 
-        for index, offer in enumerate(self.offers):
+        for index, (offer_id, vdata) in enumerate(offer_versions.items()):
             new_offer = f"""
-                    <OfferOrdered>
-                        <Offer>
-                            <Header>
-                                <ID>{generate_escaped(offer[9])}</ID>
-                            </Header>
-                        </Offer>
-                        <Quantity>{int(offer[11])}</Quantity>
-                        <OrderShipTo>
-                            <Key>1</Key>
-                        </OrderShipTo>
-                    </OfferOrdered>"""
+                <OfferOrdered>
+                    <Offer>
+                        <Header>
+                            <ID>{generate_escaped(offer_id)}</ID>
+                        </Header>
+                    </Offer>
+                    <Quantity>{vdata['quantity']}</Quantity>
+                    <OrderShipTo>
+                        <Key>1</Key>
+                    </OrderShipTo>
+                </OfferOrdered>"""
             offer_string += new_offer
-            
             version_json = {
-                "productId" : f"{offer[9]}",
-                "quantityToShip" : int(offer[11])
+                "productId": offer_id,
+                "quantityToShip": vdata["quantity"]
             }
 
-            if not(offer[10] == ""):
-                version_json["version"] = offer[10]
+            if vdata["version"]:
+                version_json["version"] = vdata["version"]
 
             self.versions.append(version_json)
 
+
+        for index, offer in enumerate(self.offers):
             # Adds all the purchase order numbers to one string
             if not(offer[12] in self.purchase_orders) and len(purchase_order_string) <= 50:
                 
@@ -445,7 +462,6 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-            
     if orders.order_id is not None:
         create_orders(orders, error_email, error_obj)
     
