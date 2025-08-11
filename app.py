@@ -348,7 +348,8 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     auth_header["Content-Type"] = "application/json"
 
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
-    print(f"Version JSON: {orders.generate_version_json()}")
+    version_json = orders.generate_version_json()
+    print(f"Version JSON: {version_json}")
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
 
 
