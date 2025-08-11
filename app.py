@@ -144,9 +144,6 @@ class Orders:
             if version and str(version).strip() and str(version).strip().lower() != "nan":
                 version_json["version"] = str(version).strip()
 
-            if not(offer[10] == ""):
-                version_json["version"] = version
-
             self.versions.append(version_json)
 
             # Adds all the purchase order numbers to one string
@@ -239,11 +236,11 @@ class Email:
 # Child of Email class for Error Email
 class ErrorEmail(Email):
     # A dictionary that uses order ID for keys and error text for value
-    error_dict = {}
-    hasError = False
 
     def __init__(self):
         self.offers = []
+        self.error_dict = {}
+        self.hasError = False
 
         # Sends this to the ITs email
         self.email_json["toRecipients"] = [
