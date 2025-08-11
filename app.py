@@ -94,9 +94,9 @@ def process_df(df):
         
 # Orders class to generate XML API calls to VeraCore
 class Orders:
-    offers = []
-    versions = []
-    purchase_orders = []
+    #offers = []
+    #versions = []
+    #purchase_orders = []
     
     def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
@@ -137,9 +137,6 @@ class Orders:
 
             if offer[10]:  # Offer Version from CSV
                 version_json["version"] = offer[10]
-
-            #if not(offer[10] == ""):
-                #version_json["version"] = offer[10]
 
             self.versions.append(version_json)
 
@@ -425,8 +422,8 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 
 # Call back function/button submit function. Returns error email
 def submit_orders(uploaded_df, error_obj : ErrorObject):
-    correct_versions = uploaded_df[['Order ID', 'Offer ID', 'Version']].drop_duplicates()
-    uploaded_df = uploaded_df.merge(correct_versions, on=['Order ID', 'Offer ID', 'Version'], how='inner')
+    #correct_versions = uploaded_df[['Order ID', 'Offer ID', 'Version']].drop_duplicates()
+    #uploaded_df = uploaded_df.merge(correct_versions, on=['Order ID', 'Offer ID', 'Version'], how='inner')
     api_df = process_df(uploaded_df)
     print("Cleaned DF being sent to Veracore:")
     print(uploaded_df[["Order ID", "Offer ID", "Version", "Quantity"]])
