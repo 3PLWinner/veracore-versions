@@ -385,6 +385,9 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 # Makes API calls to create orders in VeraCore
 def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObject):
 
+    print("XML being sent:", orders.generate_order_xml())
+    print("JSON being sent:", orders.generate_version_json())
+    
     # Needs to be text/xml to work
     headers = {
         "Content-Type" : "text/xml"
