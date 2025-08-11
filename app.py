@@ -114,24 +114,18 @@ class Orders:
             offer_id = offer[9]
             quantity = int(offer[11])
             version = offer[10]
-
-            if offer_id not in offer_versions:
-                offer_versions[offer_id] = {"quantity": 0, "version": version}
+            key = (offer_id, version)
+            if key not in offer_versions:
+                offer_versions[key] = {"quantity": 0}
     
     # Add quantity
-            offer_versions[offer_id]["quantity"] += quantity
-
-    # Update version if different and not empty
-            if version and version != offer_versions[offer_id]["version"]:
-                offer_versions[offer_id]["version"] = version
-
-
+            offer_versions[key]["quantity"] += quantity
 
         offer_string = ""
         purchase_order_string = ""
         self.versions = []  # reset per call
 
-        for index, (offer_id, vdata) in enumerate(offer_versions.items()):
+        for (offer_id, version), vdata in offer_versions.items():
             new_offer = f"""
                 <OfferOrdered>
                     <Offer>
@@ -150,8 +144,8 @@ class Orders:
                 "quantityToShip": vdata["quantity"]
             }
 
-            if vdata["version"]:
-                version_json["version"] = vdata["version"]
+            if version:
+                version_json["version"] = version
 
             self.versions.append(version_json)
 
