@@ -94,15 +94,15 @@ def process_df(df):
         
 # Orders class to generate XML API calls to VeraCore
 class Orders:
+    offers = []
+    versions = []
+    purchase_orders = []
     
-    def __init__(self, user : str, passw, order_id= None, version=None):
+    def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
         self.offers = []
-        self.versions = []
-        self.purchase_orders = []
         self.user_id = user
         self.password = passw
-        self.order_version = version
 
     def add_to_offers(self, offer):
         self.offers.append(offer)
@@ -114,14 +114,23 @@ class Orders:
         purchase_order_string = ""
 
         for index, offer in enumerate(self.offers):
+            (
+                order_id, company, addr1, addr2, addr3,
+                city, state, postal_code, country,
+                offer_id, version, quantity, ref_number,
+                comments
+            ) = offer
+            if not offer_id:
+                continue
+
             new_offer = f"""
                     <OfferOrdered>
                         <Offer>
                             <Header>
-                                <ID>{generate_escaped(offer[9])}</ID>
+                                <ID>{generate_escaped(offer_id)}</ID>
                             </Header>
                         </Offer>
-                        <Quantity>{int(offer[11])}</Quantity>
+                        <Quantity>{int(quantity)}</Quantity>
                         <OrderShipTo>
                             <Key>1</Key>
                         </OrderShipTo>
@@ -129,25 +138,24 @@ class Orders:
             offer_string += new_offer
             
             version_json = {
-                "productId" : f"{offer[9]}",
-                "quantityToShip" : int(offer[11])
+                "productId" : f"{offer_id}",
+                "quantityToShip" : int(quantity)
             }
-            if self.order_version:
-                version_json["version"] = self.order_version
-            elif offer[10]:  # Offer Version from CSV
+
+            if not(offer[10] == ""):
                 version_json["version"] = offer[10]
 
             self.versions.append(version_json)
 
             # Adds all the purchase order numbers to one string
-            if not(offer[12] in self.purchase_orders) and len(purchase_order_string) <= 50:
+            if not(ref_number in self.purchase_orders) and len(purchase_order_string) <= 50:
                 
                 if index == len(self.offers)-1:
-                    purchase_order_string += str(offer[12])
+                    purchase_order_string += str(ref_number)
                 else:
-                    purchase_order_string += str(offer[12]) + ","
+                    purchase_order_string += str(ref_number) + ","
                 
-                self.purchase_orders.append(offer[12])
+                self.purchase_orders.append(ref_number)
         
 
         return offer_string, purchase_order_string
@@ -175,7 +183,6 @@ class Orders:
                         <Header>
                             <ID>{self.order_id}</ID>
                             <EntryDate>{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}</EntryDate>
-                            <Stream>B2B</Stream>
                             <Comments>{generate_escaped(self.offers[0][13])}</Comments>
                             <ReferenceNumber>{generate_escaped(purchase_order_string)}</ReferenceNumber>
                         </Header>
@@ -350,18 +357,15 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     auth_header["Content-Type"] = "application/json"
 
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
-    version_json = orders.generate_version_json()
-    print(f"Version JSON: {version_json}")
+
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
 
 
-    if not(response.status_code == 200) and (response.status_code != 400):
+    if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
-        try:
-            error_text = response.json()["Error"]
-        except:
-            error_text = response.text
+
+        error_text = response.json()["Error"]
 
         error_email.add_to_body(orders.order_id, error_text)
 
@@ -421,41 +425,34 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 
 # Call back function/button submit function. Returns error email
 def submit_orders(uploaded_df, error_obj : ErrorObject):
+
     api_df = process_df(uploaded_df)
-    print("Cleaned DF being sent to Veracore:")
-    print(uploaded_df[["Order ID", "Offer ID", "Version", "Quantity"]])
+
     # Get tuples to iterate through
     order_tuples = api_df.itertuples()
 
     # Create the first Orders object
-    #orders = Orders(user_id,passer,None)
-    orders = None
-    curr_order_key = None
+    orders = Orders(user_id,passer,None)
 
     # Create an error email
     error_email = ErrorEmail()
 
     for order in order_tuples:
-        order_id = order[0]
-        version = order[10]
-        order_key = (order_id, version)
-        if orders is None:
-            orders = Orders(user_id, passer, order_id, version=order[10])
-            orders.add_to_offers(order)
-            curr_order_key = order_key
+
+        # If the orders object is blank add order id
+        if orders.order_id is None:
+            orders.order_id = order[0]
 
         # If order IDs match add lines to the offers, otherwise send the API call and start on the next set of lines
-        elif curr_order_key == order_key:
+        if orders.order_id == order[0]:
             orders.add_to_offers(order)
         else:    
             create_orders(orders,error_email, error_obj)
 
             # Create new orders object after creating order
-            orders = Orders(user_id,passer,order_id, version=version)
+            orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-            curr_order_key = order_key
-
-    if orders and orders.offers:
+        
         create_orders(orders, error_email, error_obj)
     
     return error_email
@@ -645,17 +642,3 @@ if not(uploaded_file == None):
                 st.text("")
                 st.text("")
                 st.success("Your orders have been successfully uploaded with the correct version!")
-            
-
-        
-            
-
-    
-
-
-
-
-
-
-
-
