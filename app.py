@@ -94,64 +94,50 @@ def process_df(df):
         
 # Orders class to generate XML API calls to VeraCore
 class Orders:
+    offers = []
+    versions = []
+    purchase_orders = []
     
     def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
         self.offers = []
         self.user_id = user
         self.password = passw
-        self.versions = []
-        self.purchase_orders = []
 
     def add_to_offers(self, offer):
         self.offers.append(offer)
 
     # Iterates through added offers and creates the offer XML to be added
     def private_generate_offer_xml(self):
-        offer_versions = {}
-
-        for offer in self.offers:
-            offer_id = offer[9]
-            quantity = int(offer[11])
-            version = offer[10]
-            key = (offer_id, version)
-            if key not in offer_versions:
-                offer_versions[key] = {"quantity": 0}
-    
-    # Add quantity
-            offer_versions[key]["quantity"] += quantity
 
         offer_string = ""
         purchase_order_string = ""
-        self.versions = []  # reset per call
 
-        for (offer_id, version), vdata in offer_versions.items():
+        for index, offer in enumerate(self.offers):
             new_offer = f"""
-                <OfferOrdered>
-                    <Offer>
-                        <Header>
-                            <ID>{generate_escaped(offer_id)}</ID>
-                        </Header>
-                    </Offer>
-                    <Quantity>{vdata['quantity']}</Quantity>
-                    <OrderShipTo>
-                        <Key>1</Key>
-                    </OrderShipTo>
-                </OfferOrdered>"""
+                    <OfferOrdered>
+                        <Offer>
+                            <Header>
+                                <ID>{generate_escaped(offer[9])}</ID>
+                            </Header>
+                        </Offer>
+                        <Quantity>{int(offer[11])}</Quantity>
+                        <OrderShipTo>
+                            <Key>1</Key>
+                        </OrderShipTo>
+                    </OfferOrdered>"""
             offer_string += new_offer
+            
             version_json = {
-                "productId": offer_id,
-                "quantityToShip": vdata["quantity"]
+                "productId" : f"{offer[9]}",
+                "quantityToShip" : int(offer[11])
             }
 
-            if version:
-                    version_json["version"] = version.strip()
-
+            if not(offer[10] == ""):
+                version_json["version"] = offer[10]
 
             self.versions.append(version_json)
 
-
-        for index, offer in enumerate(self.offers):
             # Adds all the purchase order numbers to one string
             if not(offer[12] in self.purchase_orders) and len(purchase_order_string) <= 50:
                 
@@ -363,16 +349,22 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
 
-    response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
-    print(f"Status code: {response.status_code}")
-    print(f"Response content: {response.text}")
+    payload = {
+        "orderId": orders.order_id,
+        "warehouseId": "3plwhs",
+        "holdShippingOrder": False,
+        "products": orders.versions
+    }
+    response = requests.post(endpoint, headers=auth_header, json=payload)
 
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
-
-        error_text = response.json()["Error"]
-
+        try:
+            error_text = response.json().get("Error", response.text)
+        except Exception:
+            error_text = response.text
+            
         error_email.add_to_body(orders.order_id, error_text)
 
         # Marks that there was an error and to send an email
@@ -385,9 +377,6 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 
 # Makes API calls to create orders in VeraCore
 def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObject):
-
-    print("XML being sent:", orders.generate_order_xml())
-    print("JSON being sent:", orders.generate_version_json())
 
     # Needs to be text/xml to work
     headers = {
@@ -461,7 +450,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-    if orders.order_id is not None:
+        
         create_orders(orders, error_email, error_obj)
     
     return error_email
