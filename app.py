@@ -174,6 +174,7 @@ class Orders:
                         <Header>
                             <ID>{self.order_id}</ID>
                             <EntryDate>{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}</EntryDate>
+                            <Stream>B2B</Stream>
                             <Comments>{generate_escaped(self.offers[0][13])}</Comments>
                             <ReferenceNumber>{generate_escaped(purchase_order_string)}</ReferenceNumber>
                         </Header>
@@ -419,9 +420,11 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 
 # Call back function/button submit function. Returns error email
 def submit_orders(uploaded_df, error_obj : ErrorObject):
-
+    correct_versions = uploaded_df[['Order ID', 'Offer ID', 'Version']].drop_duplicates()
+    uploaded_df = uploaded_df.merge(correct_versions, on=['Order ID', 'Offer ID', 'Version'], how='inner')
     api_df = process_df(uploaded_df)
-    api_df = api_df.sort_values(by="Order ID")
+    print("Cleaned DF being sent to Veracore:")
+    print(uploaded_df[["Order ID", "Offer ID", "Version", "Quantity"]])
     # Get tuples to iterate through
     order_tuples = api_df.itertuples()
 
