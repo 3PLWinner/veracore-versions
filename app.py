@@ -440,7 +440,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
         order_id = order[0]
         version = order[10]
         order_key = (order_id, version)
-        if orders.order_id is None:
+        if orders is None:
             orders = Orders(user_id, passer, order_id, version=order[10])
             orders.add_to_offers(order)
             curr_order_key = order_key
