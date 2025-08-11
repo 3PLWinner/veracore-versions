@@ -112,6 +112,7 @@ class Orders:
 
         offer_string = ""
         purchase_order_string = ""
+        version_to_use = self.offers[0][10] if self.offers and len(self.offers[0]) > 10 else ""
 
         for index, offer in enumerate(self.offers):
             (
@@ -141,6 +142,9 @@ class Orders:
                 "productId" : f"{offer_id}",
                 "quantityToShip" : int(quantity)
             }
+
+            if version_to_use and str(version_to_use).strip().lower() != "nan":
+                version_json["version"] = str(version_to_use).strip()
 
             if not(offer[10] == ""):
                 version_json["version"] = offer[10]
