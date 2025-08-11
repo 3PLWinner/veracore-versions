@@ -420,7 +420,7 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 def submit_orders(uploaded_df, error_obj : ErrorObject):
 
     api_df = process_df(uploaded_df)
-
+    api_df = api_df.sort_values(by="Order ID")
     # Get tuples to iterate through
     order_tuples = api_df.itertuples()
 
