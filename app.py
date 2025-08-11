@@ -101,6 +101,8 @@ class Orders:
     def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
         self.offers = []
+        self.versions = []
+        self.purchase_orders = []
         self.user_id = user
         self.password = passw
 
