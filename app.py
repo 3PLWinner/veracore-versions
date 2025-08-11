@@ -133,21 +133,10 @@ def process_df(df):
         # Return the validation errors as part of an exception or error object
         error_msg = "Version consistency validation failed:\n" + "\n".join(validation_errors)
         raise ValueError(error_msg)
-    
-    # For each Order ID + Offer ID combination, ensure we use a consistent version
-    # We'll use the first non-null version found for each combination
-    def get_consistent_version(group):
-        versions = group['Version'].dropna()
-        versions = versions[versions.astype(str).str.strip() != '']
-        versions = versions[versions.astype(str).str.lower() != 'nan']
-        if len(versions) > 0:
-            return versions.iloc[0]  # Use the first valid version
-        return None
+
     
     # Group by Order ID and Offer ID to ensure version consistency per product per order
-    df_with_consistent_versions = df.groupby(['Order ID', 'Offer ID'], group_keys=False).apply(
-        lambda group: group.assign(Version=get_consistent_version(group))
-    ).reset_index(drop=True)
+    df_with_consistent_versions = df.copy()
 
     # Group by Delivery Number, Product ID, and aggregate the Quantity
     df = df_with_consistent_versions.groupby(['Order ID', 'Offer ID', 'Version'], as_index=False).agg({
