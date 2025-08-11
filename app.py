@@ -145,7 +145,12 @@ class Orders:
             }
 
             if version:
-                version_json["version"] = version
+                match = re.search(r"\d{6,}", version)
+                if match:
+                    version_json["version"] = match.group(0)
+                else:
+                    version_json["version"] = version 
+
 
             self.versions.append(version_json)
 
@@ -387,7 +392,7 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 
     print("XML being sent:", orders.generate_order_xml())
     print("JSON being sent:", orders.generate_version_json())
-    
+
     # Needs to be text/xml to work
     headers = {
         "Content-Type" : "text/xml"
