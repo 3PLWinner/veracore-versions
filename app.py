@@ -101,11 +101,14 @@ class Orders:
     def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
         self.offers = []
+        self.version = None
         self.user_id = user
         self.password = passw
 
     def add_to_offers(self, offer):
         self.offers.append(offer)
+        if self.version is None and offer[10] != "":
+            self.version = offer[10]
 
     # Iterates through added offers and creates the offer XML to be added
     def private_generate_offer_xml(self):
@@ -208,6 +211,16 @@ class Orders:
         """
     
     def generate_version_json(self):
+        products = []
+        for offer in self.offers:
+            product_json = {
+                "productId": offer[9],
+                "quantityToShip": int(offer[11])
+            }
+            if self.version:
+                product_json["version"] = self.version
+            products.append(product_json)
+
         return json.dumps({
             "orderId" : self.order_id,
             "warehouseId" : "3plwhs",
@@ -364,7 +377,7 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
             error_text = response.json().get("Error", response.text)
         except Exception:
             error_text = response.text
-            
+
         error_email.add_to_body(orders.order_id, error_text)
 
         # Marks that there was an error and to send an email
@@ -451,7 +464,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
         
-        create_orders(orders, error_email, error_obj)
+    create_orders(orders, error_email, error_obj)
     
     return error_email
 
