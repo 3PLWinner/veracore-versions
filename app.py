@@ -145,7 +145,7 @@ def process_df(df):
         return None
     
     # Group by Order ID and Offer ID to ensure version consistency per product per order
-    df_with_consistent_versions = df.groupby(['Order ID', 'Offer ID']).apply(
+    df_with_consistent_versions = df.groupby(['Order ID', 'Offer ID'], group_keys=False).apply(
         lambda group: group.assign(Version=get_consistent_version(group))
     ).reset_index(drop=True)
 
