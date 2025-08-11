@@ -133,8 +133,11 @@ class Orders:
                 "quantityToShip" : int(offer[11])
             }
 
-            if not(offer[10] == ""):
+            if offer[10]:  # Offer Version from CSV
                 version_json["version"] = offer[10]
+
+            #if not(offer[10] == ""):
+                #version_json["version"] = offer[10]
 
             self.versions.append(version_json)
 
