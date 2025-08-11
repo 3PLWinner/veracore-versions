@@ -112,17 +112,16 @@ class Orders:
 
         offer_string = ""
         purchase_order_string = ""
-        #self.versions = []
-        for index, offer in enumerate(self.offers):
 
+        for index, offer in enumerate(self.offers):
             new_offer = f"""
                     <OfferOrdered>
                         <Offer>
                             <Header>
-                                <ID>{generate_escaped(offer._9)}</ID>
+                                <ID>{generate_escaped(offer[9])}</ID>
                             </Header>
                         </Offer>
-                        <Quantity>{int(offer.Quantity)}</Quantity>
+                        <Quantity>{int(offer[11])}</Quantity>
                         <OrderShipTo>
                             <Key>1</Key>
                         </OrderShipTo>
@@ -130,24 +129,24 @@ class Orders:
             offer_string += new_offer
             
             version_json = {
-                "productId" : f"{offer._9}",
-                "quantityToShip" : int(offer.Quantity)
+                "productId" : f"{offer[9]}",
+                "quantityToShip" : int(offer[11])
             }
 
-            if not(offer.Version == ""):
-                version_json["version"] = offer.Version
+            if not(offer[10] == ""):
+                version_json["version"] = offer[10]
 
             self.versions.append(version_json)
 
             # Adds all the purchase order numbers to one string
-            if not(offer._12 in self.purchase_orders) and len(purchase_order_string) <= 50:
+            if not(offer[12] in self.purchase_orders) and len(purchase_order_string) <= 50:
                 
                 if index == len(self.offers)-1:
-                    purchase_order_string += str(offer._12)
+                    purchase_order_string += str(offer[12])
                 else:
-                    purchase_order_string += str(offer._12) + ","
+                    purchase_order_string += str(offer[12]) + ","
                 
-                self.purchase_orders.append(offer._12)
+                self.purchase_orders.append(offer[12])
         
 
         return offer_string, purchase_order_string
@@ -175,20 +174,20 @@ class Orders:
                         <Header>
                             <ID>{self.order_id}</ID>
                             <EntryDate>{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}</EntryDate>
-                            <Comments>{generate_escaped(self.offers[0]._13)}</Comments>
-                            <ReferenceNumber>{generate_escaped(self.offers[0].Version)}</ReferenceNumber>
+                            <Comments>{generate_escaped(self.offers[0][13])}</Comments>
+                            <ReferenceNumber>{generate_escaped(purchase_order_string)}</ReferenceNumber>
                         </Header>
                         <Money></Money>
                         <Payment></Payment>
                         <OrderedBy>
-                            <CompanyName>{generate_escaped(self.offers[0]._1)}</CompanyName>
-                            <Address1>{generate_escaped(self.offers[0]._2)}</Address1>
-                            <Address2>{generate_escaped(self.offers[0]._3)}</Address2>
-                            <Address3>{generate_escaped(self.offers[0]._4)}</Address3>
-                            <City>{generate_escaped(self.offers[0].City)}</City>
-                            <State>{generate_escaped(self.offers[0].State)}</State>
-                            <PostalCode>{generate_escaped(self.offers[0]._7)}</PostalCode>
-                            <Country>{generate_escaped(self.offers[0].Country)}</Country>
+                            <CompanyName>{generate_escaped(self.offers[0][1])}</CompanyName>
+                            <Address1>{generate_escaped(self.offers[0][2])}</Address1>
+                            <Address2>{generate_escaped(self.offers[0][3])}</Address2>
+                            <Address3>{generate_escaped(self.offers[0][4])}</Address3>
+                            <City>{generate_escaped(self.offers[0][5])}</City>
+                            <State>{generate_escaped(self.offers[0][6])}</State>
+                            <PostalCode>{generate_escaped(self.offers[0][7])}</PostalCode>
+                            <Country>{generate_escaped(self.offers[0][8])}</Country>
                         </OrderedBy>
                         <ShipTo>
                             <OrderShipTo>
@@ -202,11 +201,6 @@ class Orders:
                         <Offers>
                             {offer_string} 
                         </Offers>
-                        <ShippingSuggestions>
-                            <ShippingSuggestion>
-                                <Carrier>Standard</Carrier>
-                            </ShippingSuggestion>
-                        </ShippingSuggestions>
                     </order>
                 </AddOrder>
             </soap:Body>
@@ -354,15 +348,15 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     auth_header["Content-Type"] = "application/json"
 
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
-    print(f"Version JSON: {orders.generate_version_json()}")
+
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
 
-    print(f"Response status: {response.status_code}, Response: {response.text}")
-    if not(response.status_code == 200) and response.status_code != 400:
+
+    if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
-        error_text = response.json()["Error"]
 
+        error_text = response.json()["Error"]
 
         error_email.add_to_body(orders.order_id, error_text)
 
@@ -424,27 +418,34 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 def submit_orders(uploaded_df, error_obj : ErrorObject):
 
     api_df = process_df(uploaded_df)
+
+    # Get tuples to iterate through
     order_tuples = api_df.itertuples()
-    orders = None
+
+    # Create the first Orders object
+    orders = Orders(user_id,passer,None)
+
+    # Create an error email
     error_email = ErrorEmail()
-    last_order_id = None
 
     for order in order_tuples:
-        current_order_id = order[0]
-        if orders is None:
-            orders = Orders(user_id, passer, current_order_id)
-        if last_order_id is None or current_order_id == last_order_id:
-            orders.add_to_offers(order)
-        else:
-            create_orders(orders, error_email, error_obj)
-            orders = Orders(user_id, passer, current_order_id)
-            orders.add_to_offers(order)
-        last_order_id = current_order_id
 
-    # After the loop, submit the last order
-    if orders and orders.offers:
+        # If the orders object is blank add order id
+        if orders.order_id is None:
+            orders.order_id = order[0]
+
+        # If order IDs match add lines to the offers, otherwise send the API call and start on the next set of lines
+        if orders.order_id == order[0]:
+            orders.add_to_offers(order)
+        else:    
+            create_orders(orders,error_email, error_obj)
+
+            # Create new orders object after creating order
+            orders = Orders(user_id,passer,order[0])
+            orders.add_to_offers(order)
+        
         create_orders(orders, error_email, error_obj)
-
+    
     return error_email
 
 # Generates an Outlook Draft email
