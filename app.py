@@ -179,7 +179,26 @@ class Orders:
 
     def add_to_offers(self, offer):
         self.offers.append(offer)
+    
+    def build_versions(self):
+        self.versions.clear()
+        for offer in self.offers:
+            offer_id = offer[9]
+            quantity = offer[11]
+            version = offer[10]
+        
+            if not offer_id or not quantity:
+                continue
 
+            version_json = {
+                "productId": str(offer_id),
+                "quantityToShip": int(quantity)
+            }
+
+            if version and str(version).strip() and str(version).strip().lower() != "nan":
+                version_json["version"] = str(version).strip()
+
+        self.versions.append(version_json)
     # Iterates through added offers and creates the offer XML to be added
     def private_generate_offer_xml(self):
 
@@ -239,6 +258,7 @@ class Orders:
     
     # Generates XML needed for VeraCore SOAP API Add Orders endpoint
     def generate_order_xml(self):
+        self.build_versions()
         offer_string, purchase_order_string = self.private_generate_offer_xml()
 
         return f"""<?xml version="1.0" encoding="utf-8"?>
@@ -429,10 +449,11 @@ def get_auth(user :str, passw : str):
 
     return (auth_header, True)
 
+
 def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error_obj : ErrorObject):
 
     auth_header["Content-Type"] = "application/json"
-
+    orders.build_versions()
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
 
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
