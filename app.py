@@ -94,15 +94,13 @@ def process_df(df):
         
 # Orders class to generate XML API calls to VeraCore
 class Orders:
-    #offers = []
-    #versions = []
-    #purchase_orders = []
+    offers = []
+    versions = []
+    purchase_orders = []
     
     def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
         self.offers = []
-        self.versions = []
-        self.purchase_orders = []
         self.user_id = user
         self.password = passw
 
@@ -451,7 +449,8 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-
+            
+    if orders.offers:
         create_orders(orders, error_email, error_obj)
     
     return error_email
