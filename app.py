@@ -429,24 +429,35 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
     order_tuples = api_df.itertuples()
 
     # Create the first Orders object
-    orders = Orders(user_id,passer,None)
+    #orders = Orders(user_id,passer,None)
+    orders = None
+    curr_order_key = None
 
     # Create an error email
     error_email = ErrorEmail()
 
     for order in order_tuples:
+        order_id = order[0]
+        version = order[10]
+        order_key = (order_id, version)
         if orders.order_id is None:
-            orders = Orders(user_id, passer, order[0], version=order[10])
+            orders = Orders(user_id, passer, order_id, version=order[10])
             orders.add_to_offers(order)
+            curr_order_key = order_key
+
         # If order IDs match add lines to the offers, otherwise send the API call and start on the next set of lines
+        elif curr_order_key == order_key:
+            orders.add_to_offers(order)
+
         elif orders.order_id == order[0]:
             orders.add_to_offers(order)
         else:    
             create_orders(orders,error_email, error_obj)
 
             # Create new orders object after creating order
-            orders = Orders(user_id,passer,order[0])
+            orders = Orders(user_id,passer,order_id, version=version)
             orders.add_to_offers(order)
+            curr_order_key = order_key
 
     if orders and orders.offers:
         create_orders(orders, error_email, error_obj)
