@@ -61,85 +61,11 @@ def write_to_log(text):
         file.write(datetime.datetime.now().strftime("--------%m-%d-%yT%H:%M:%S----------------\n\n"))
         file.write(text)
 
-# Validate version consistency and return validation results
-def validate_version_consistency(df):
-    """
-    Validates that versions are consistent within each order and for each product.
-    Returns a tuple: (is_valid, error_messages, cleaned_df)
-    """
-    validation_errors = []
-    
-    # Check for version consistency within each Order ID
-    order_version_issues = []
-    product_version_issues = []
-    
-    for order_id in df['Order ID'].unique():
-        order_data = df[df['Order ID'] == order_id].copy()
-        
-        # Get unique versions for this order (excluding NaN/empty)
-        order_versions = order_data['Version'].dropna()
-        order_versions = order_versions[order_versions.astype(str).str.strip() != '']
-        order_versions = order_versions[order_versions.astype(str).str.lower() != 'nan']
-        unique_versions = order_versions.unique()
-        
-        # If there are multiple versions in the same order, that's an issue
-        if len(unique_versions) > 1:
-            order_version_issues.append({
-                'order_id': order_id,
-                'versions': list(unique_versions)
-            })
-        
-        # Check for version consistency within each product in this order
-        for offer_id in order_data['Offer ID'].unique():
-            if pd.isna(offer_id) or str(offer_id).strip() == '':
-                continue
-                
-            product_data = order_data[order_data['Offer ID'] == offer_id]
-            product_versions = product_data['Version'].dropna()
-            product_versions = product_versions[product_versions.astype(str).str.strip() != '']
-            product_versions = product_versions[product_versions.astype(str).str.lower() != 'nan']
-            unique_product_versions = product_versions.unique()
-            
-            if len(unique_product_versions) > 1:
-                product_version_issues.append({
-                    'order_id': order_id,
-                    'offer_id': offer_id,
-                    'versions': list(unique_product_versions)
-                })
-    
-    # Generate error messages
-    if order_version_issues:
-        for issue in order_version_issues:
-            validation_errors.append(
-                f"Order {issue['order_id']} has inconsistent versions: {', '.join(map(str, issue['versions']))}"
-            )
-    
-    if product_version_issues:
-        for issue in product_version_issues:
-            validation_errors.append(
-                f"Order {issue['order_id']}, Product {issue['offer_id']} has inconsistent versions: {', '.join(map(str, issue['versions']))}"
-            )
-    
-    is_valid = len(validation_errors) == 0
-    
-    return is_valid, validation_errors, df
-
-
 # Group Order Dataframe
 def process_df(df):
-
-    is_valid, validation_errors, validated_df = validate_version_consistency(df)
-    if not is_valid:
-        # Return the validation errors as part of an exception or error object
-        error_msg = "Version consistency validation failed:\n" + "\n".join(validation_errors)
-        raise ValueError(error_msg)
-
     
-    # Group by Order ID and Offer ID to ensure version consistency per product per order
-    df_with_consistent_versions = df.copy()
-
     # Group by Delivery Number, Product ID, and aggregate the Quantity
-    df = df_with_consistent_versions.groupby(['Order ID', 'Offer ID', 'Version'], as_index=False).agg({
+    df = df.groupby(['Order ID', 'Offer ID', 'Version'], as_index=False).agg({
         'Company Name': 'first',
         'Address 1': 'first',
         'Address 2': 'first',
@@ -172,66 +98,32 @@ class Orders:
     def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
         self.offers = []
-        self.versions = []
-        self.purchase_orders = []
         self.user_id = user
         self.password = passw
+        self.versions = []
+        self.purchase_orders = []
 
     def add_to_offers(self, offer):
         self.offers.append(offer)
-    
-    def build_versions(self):
-        self.versions.clear()
-        for offer in self.offers:
-            offer_id = offer[9]
-            quantity = offer[11]
-            version = offer[10]
-        
-            if not offer_id or not quantity:
-                continue
 
-            version_json = {
-                "productId": str(offer_id),
-                "quantityToShip": int(quantity)
-            }
-
-            if version and str(version).strip() and str(version).strip().lower() != "nan":
-                version_json["version"] = str(version).strip()
-
-        self.versions.append(version_json)
     # Iterates through added offers and creates the offer XML to be added
     def private_generate_offer_xml(self):
 
         offer_string = ""
         purchase_order_string = ""
 
-        versions_in_order = set()
-        for offer in self.offers:
-            version = offer[10]  # Version is at index 10
-            if version and str(version).strip() and str(version).strip().lower() != "nan":
-                versions_in_order.add(str(version).strip())
+        self.versions = []  # reset per call
+        self.purchase_orders = []
 
-        if len(versions_in_order) > 1:
-            raise ValueError(f"Order {self.order_id} has inconsistent versions: {', '.join(versions_in_order)}")
-                        
         for index, offer in enumerate(self.offers):
-            (
-                order_id, company, addr1, addr2, addr3,
-                city, state, postal_code, country,
-                offer_id, version, quantity, ref_number,
-                comments
-            ) = offer
-            if not offer_id:
-                continue
-
             new_offer = f"""
                     <OfferOrdered>
                         <Offer>
                             <Header>
-                                <ID>{generate_escaped(offer_id)}</ID>
+                                <ID>{generate_escaped(offer[9])}</ID>
                             </Header>
                         </Offer>
-                        <Quantity>{int(quantity)}</Quantity>
+                        <Quantity>{int(offer[11])}</Quantity>
                         <OrderShipTo>
                             <Key>1</Key>
                         </OrderShipTo>
@@ -239,26 +131,30 @@ class Orders:
             offer_string += new_offer
             
             version_json = {
-                "productId" : f"{offer_id}",
-                "quantityToShip" : int(quantity)
+                "productId" : f"{offer[9]}",
+                "quantityToShip" : int(offer[11])
             }
 
-            if version and str(version).strip() and str(version).strip().lower() != "nan":
-                version_json["version"] = str(version).strip()
+            if not(offer[10] == ""):
+                version_json["version"] = offer[10]
 
             self.versions.append(version_json)
 
             # Adds all the purchase order numbers to one string
-            if ref_number and ref_number not in self.purchase_orders:
-                self.purchase_orders.append(str(ref_number))
-
-        purchase_order_string = ",".join(self.purchase_orders)
+            if not(offer[12] in self.purchase_orders) and len(purchase_order_string) <= 50:
+                
+                if index == len(self.offers)-1:
+                    purchase_order_string += str(offer[12])
+                else:
+                    purchase_order_string += str(offer[12]) + ","
+                
+                self.purchase_orders.append(offer[12])
+        
 
         return offer_string, purchase_order_string
     
     # Generates XML needed for VeraCore SOAP API Add Orders endpoint
     def generate_order_xml(self):
-        self.build_versions()
         offer_string, purchase_order_string = self.private_generate_offer_xml()
 
         return f"""<?xml version="1.0" encoding="utf-8"?>
@@ -339,11 +235,11 @@ class Email:
 # Child of Email class for Error Email
 class ErrorEmail(Email):
     # A dictionary that uses order ID for keys and error text for value
+    error_dict = {}
+    hasError = False
 
     def __init__(self):
         self.offers = []
-        self.error_dict = {}
-        self.hasError = False
 
         # Sends this to the ITs email
         self.email_json["toRecipients"] = [
@@ -449,11 +345,10 @@ def get_auth(user :str, passw : str):
 
     return (auth_header, True)
 
-
 def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error_obj : ErrorObject):
 
     auth_header["Content-Type"] = "application/json"
-    orders.build_versions()
+
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
 
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
@@ -478,86 +373,53 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 # Makes API calls to create orders in VeraCore
 def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObject):
 
-    try:
-        # Validate version consistency before making API calls
-        versions_in_order = set()
-        for offer in orders.offers:
-            version = offer[10]  # Version is at index 10
-            if version and str(version).strip() and str(version).strip().lower() != "nan":
-                versions_in_order.add(str(version).strip())
-        
-        if len(versions_in_order) > 1:
-            error_message = f"Order {orders.order_id} has inconsistent versions: {', '.join(versions_in_order)}"
-            error_email.add_offers(orders.offers)
-            error_email.add_to_body(orders.order_id, error_message)
-            error_email.hasError = True
-            error_obj.is_error = True
-            error_obj.error_text = "Version consistency error detected. Orders have been sent to IT to investigate."
-            return
-        
     # Needs to be text/xml to work
-        headers = {
-            "Content-Type" : "text/xml"
-        }
+    headers = {
+        "Content-Type" : "text/xml"
+    }
 
-        response = requests.post("https://rhu335.veracore.com/pmomsws/OMS.asmx", headers=headers, data=orders.generate_order_xml())
+    response = requests.post("https://rhu335.veracore.com/pmomsws/OMS.asmx", headers=headers, data=orders.generate_order_xml())
 
-        if response.status_code > 299:
+    if response.status_code > 299:
         # If error, we want to add the offers to the error email
-            error_email.add_offers(orders.offers)
-            error_text = response.text
-            split_string = error_text.split("System.Exception:")[-1]
-            api_error = split_string.split("at")[0]
+        error_email.add_offers(orders.offers)
+        error_text = response.text
+        split_string = error_text.split("System.Exception:")[-1]
+        api_error = split_string.split("at")[0]
 
         # If the order already exists you just change the selected version on the order
-            if "already exists" in api_error:
-                auth_header, was_successful = get_auth(orders.user_id, orders.password)
+        if "already exists" in api_error:
+            auth_header, was_successful = get_auth(orders.user_id, orders.password)
             
             # If the auth was successful try to change the versions
-                if was_successful:
-                    change_version(orders,error_email,auth_header, error_obj)
-                else:
-                    error_obj.is_error = True
-                    error_obj.error_text = "Invalid Credentials"
-        # Add the credential error to the email and add the error text to the object
-            else:
-                error_email.add_to_body(orders.order_id, api_error)
-
-            # Marks that there was an error and to send an email
-                error_email.hasError = True
-
-                error_obj.is_error = True
-                error_obj.error_text = "There was an issue with one or more of your orders. The orders have now been sent to IT to investigate and upload."
-    # Otherwise adding was successful and follow the same path
-        else:
-            auth_header, was_successful = get_auth(orders.user_id, orders.password)
-
             if was_successful:
                 change_version(orders,error_email,auth_header, error_obj)
             else:
                 error_obj.is_error = True
                 error_obj.error_text = "Invalid Credentials"
-    except ValueError as ve:
-        # Handle version consistency errors
-        error_email.add_offers(orders.offers)
-        error_email.add_to_body(orders.order_id, str(ve))
-        error_email.hasError = True
-        error_obj.is_error = True
-        error_obj.error_text = "Version consistency error detected. Orders have been sent to IT to investigate."
+        # Add the credential error to the email and add the error text to the object
+        else:
+            error_email.add_to_body(orders.order_id, api_error)
+
+            # Marks that there was an error and to send an email
+            error_email.hasError = True
+
+            error_obj.is_error = True
+            error_obj.error_text = "There was an issue with one or more of your orders. The orders have now been sent to IT to investigate and upload."
+    # Otherwise adding was successful and follow the same path
+    else:
+        auth_header, was_successful = get_auth(orders.user_id, orders.password)
+
+        if was_successful:
+            change_version(orders,error_email,auth_header, error_obj)
+        else:
+            error_obj.is_error = True
+            error_obj.error_text = "Invalid Credentials"
 
 # Call back function/button submit function. Returns error email
 def submit_orders(uploaded_df, error_obj : ErrorObject):
-    try:
-        api_df = process_df(uploaded_df)
-    except ValueError as ve:
-        # Handle version consistency validation errors
-        error_obj.is_error = True
-        error_obj.error_text = str(ve)
-        error_email = ErrorEmail()
-        error_email.hasError = True
-        error_email.add_to_body("VALIDATION_ERROR", str(ve))
-        return error_email
 
+    api_df = process_df(uploaded_df)
 
     # Get tuples to iterate through
     order_tuples = api_df.itertuples()
@@ -583,7 +445,8 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-    if orders.offers:
+            
+    if orders.order_id is not None:
         create_orders(orders, error_email, error_obj)
     
     return error_email
