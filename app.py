@@ -348,15 +348,17 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     auth_header["Content-Type"] = "application/json"
 
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
-
+    print(f"Version JSON: {orders.generate_version_json()}")
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
 
 
-    if not(response.status_code == 200):
+    if not(response.status_code == 200) and (response.status_code != 400):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
-
-        error_text = response.json()["Error"]
+        try:
+            error_text = response.json()["Error"]
+        except:
+            error_text = response.text
 
         error_email.add_to_body(orders.order_id, error_text)
 
@@ -443,7 +445,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-        
+    if orders.offers:    
         create_orders(orders, error_email, error_obj)
     
     return error_email
