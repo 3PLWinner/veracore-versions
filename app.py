@@ -112,7 +112,7 @@ class Orders:
 
     # Iterates through added offers and creates the offer XML to be added
     def private_generate_offer_xml(self):
-
+        self.versions = []
         offer_string = ""
         purchase_order_string = ""
 
@@ -217,15 +217,15 @@ class Orders:
                 "productId": offer[9],
                 "quantityToShip": int(offer[11])
             }
-            if self.version:
-                product_json["version"] = self.version
+            if offer[10]:
+                product_json["version"] = offer[10]
             products.append(product_json)
 
         return json.dumps({
             "orderId" : self.order_id,
             "warehouseId" : "3plwhs",
             "holdShippingOrder" : False,
-            "products" : self.versions
+            "products" : products
         })
 
 class Email:
