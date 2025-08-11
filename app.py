@@ -145,11 +145,7 @@ class Orders:
             }
 
             if version:
-                match = re.search(r"\d{6,}", version)
-                if match:
-                    version_json["version"] = match.group(0)
-                else:
-                    version_json["version"] = version 
+                    version_json["version"] = version.strip()
 
 
             self.versions.append(version_json)
