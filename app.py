@@ -451,7 +451,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-    if orders.offers:    
+
         create_orders(orders, error_email, error_obj)
     
     return error_email
