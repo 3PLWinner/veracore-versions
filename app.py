@@ -94,13 +94,12 @@ def process_df(df):
         
 # Orders class to generate XML API calls to VeraCore
 class Orders:
-    offers = []
-    versions = []
-    purchase_orders = []
     
     def __init__(self, user : str, passw, order_id= None):
         self.order_id : str= order_id
         self.offers = []
+        self.versions = []
+        self.purchase_orders = []
         self.user_id = user
         self.password = passw
 
@@ -112,7 +111,6 @@ class Orders:
 
         offer_string = ""
         purchase_order_string = ""
-        version_to_use = self.offers[0][10] if self.offers and len(self.offers[0]) > 10 else ""
 
         for index, offer in enumerate(self.offers):
             (
@@ -143,24 +141,19 @@ class Orders:
                 "quantityToShip" : int(quantity)
             }
 
-            if version_to_use and str(version_to_use).strip().lower() != "nan":
-                version_json["version"] = str(version_to_use).strip()
+            if version and str(version).strip() and str(version).strip().lower() != "nan":
+                version_json["version"] = str(version).strip()
 
             if not(offer[10] == ""):
-                version_json["version"] = offer[10]
+                version_json["version"] = version
 
             self.versions.append(version_json)
 
             # Adds all the purchase order numbers to one string
-            if not(ref_number in self.purchase_orders) and len(purchase_order_string) <= 50:
-                
-                if index == len(self.offers)-1:
-                    purchase_order_string += str(ref_number)
-                else:
-                    purchase_order_string += str(ref_number) + ","
-                
-                self.purchase_orders.append(ref_number)
-        
+            if ref_number and ref_number not in self.purchase_orders:
+                self.purchase_orders.append(str(ref_number))
+
+        purchase_order_string = ",".join(self.purchase_orders)
 
         return offer_string, purchase_order_string
     
@@ -456,7 +449,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-        
+    if orders.offers:
         create_orders(orders, error_email, error_obj)
     
     return error_email
