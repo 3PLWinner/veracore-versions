@@ -363,7 +363,8 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
 
     response = requests.post(endpoint, headers=auth_header, data=orders.generate_version_json())
-
+    print(f"Status code: {response.status_code}")
+    print(f"Response content: {response.text}")
 
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
