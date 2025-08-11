@@ -98,11 +98,12 @@ class Orders:
     versions = []
     purchase_orders = []
     
-    def __init__(self, user : str, passw, order_id= None):
+    def __init__(self, user : str, passw, order_id= None, version=None):
         self.order_id : str= order_id
         self.offers = []
         self.user_id = user
         self.password = passw
+        self.order_version = version
 
     def add_to_offers(self, offer):
         self.offers.append(offer)
@@ -132,8 +133,9 @@ class Orders:
                 "productId" : f"{offer[9]}",
                 "quantityToShip" : int(offer[11])
             }
-
-            if offer[10]:  # Offer Version from CSV
+            if self.order_version:
+                version_json["version"] = self.order_version
+            elif offer[10]:  # Offer Version from CSV
                 version_json["version"] = offer[10]
 
             self.versions.append(version_json)
@@ -420,8 +422,6 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 
 # Call back function/button submit function. Returns error email
 def submit_orders(uploaded_df, error_obj : ErrorObject):
-    #correct_versions = uploaded_df[['Order ID', 'Offer ID', 'Version']].drop_duplicates()
-    #uploaded_df = uploaded_df.merge(correct_versions, on=['Order ID', 'Offer ID', 'Version'], how='inner')
     api_df = process_df(uploaded_df)
     print("Cleaned DF being sent to Veracore:")
     print(uploaded_df[["Order ID", "Offer ID", "Version", "Quantity"]])
@@ -435,13 +435,11 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
     error_email = ErrorEmail()
 
     for order in order_tuples:
-
-        # If the orders object is blank add order id
         if orders.order_id is None:
-            orders.order_id = order[0]
-
+            orders = Orders(user_id, passer, order[0], version=order[10])
+            orders.add_to_offers(order)
         # If order IDs match add lines to the offers, otherwise send the API call and start on the next set of lines
-        if orders.order_id == order[0]:
+        elif orders.order_id == order[0]:
             orders.add_to_offers(order)
         else:    
             create_orders(orders,error_email, error_obj)
@@ -449,8 +447,8 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             # Create new orders object after creating order
             orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
-            
-    if orders.offers:
+
+    if orders and orders.offers:
         create_orders(orders, error_email, error_obj)
     
     return error_email
