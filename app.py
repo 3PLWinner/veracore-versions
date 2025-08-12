@@ -94,14 +94,14 @@ def process_df(df):
         
 # Orders class to generate XML API calls to VeraCore
 class Orders:
-    offers = []
     versions = []
+    offers = []
     purchase_orders = []
     
-    def __init__(self, user : str, passw, order_id= None):
+    def __init__(self, user : str, passw, order_id= None, version=None):
         self.order_id : str= order_id
         self.offers = []
-        self.version = None
+        self.version = version
         self.user_id = user
         self.password = passw
 
@@ -368,8 +368,10 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
         "holdShippingOrder": False,
         "products": orders.versions
     }
+    print("REQUEST JSON to VeraCore ShippingOrder API:\n", json.dumps(payload, indent=2))
     response = requests.post(endpoint, headers=auth_header, json=payload)
-
+    print("RESPONSE STATUS:", response.status_code)
+    print("RESPONSE TEXT:", response.text)
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
