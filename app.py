@@ -224,7 +224,7 @@ class Orders:
         return json.dumps({
             "orderId" : self.order_id,
             "warehouseId" : "3plwhs",
-            "holdShippingOrder" : True,
+            "holdShippingOrder" : False,
             "products" : products
         })
 
