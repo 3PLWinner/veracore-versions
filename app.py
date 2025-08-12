@@ -368,12 +368,14 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
         "holdShippingOrder": False,
         "products": orders.versions
     }
-    print("REQUEST JSON to VeraCore ShippingOrder API:\n", json.dumps(payload, indent=2))
-    st.warning("Preparing to make version update request...")
-    st.text(json.dumps(payload, indent=2))  # Log the actual payload
+    st.subheader("VeraCore ShippingOrder API Request Payload")
+    st.code(json.dumps(payload, indent=2), language='json')
+
     response = requests.post(endpoint, headers=auth_header, json=payload)
-    print("RESPONSE STATUS:", response.status_code)
-    print("RESPONSE TEXT:", response.text)
+    st.subheader("VeraCore API Response")
+    st.text(f"Status Code: {response.status_code}")
+    st.code(response.text, language='json')  # Use .code for formatting, or .text for raw outpu
+    
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
