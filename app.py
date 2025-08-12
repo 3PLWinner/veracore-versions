@@ -357,7 +357,7 @@ def get_auth(user :str, passw : str):
     return (auth_header, True)
 
 def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error_obj : ErrorObject):
-
+    st.warning(f"Calling change_version for order {orders.order_id}")
     auth_header["Content-Type"] = "application/json"
 
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
@@ -369,6 +369,8 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
         "products": orders.versions
     }
     print("REQUEST JSON to VeraCore ShippingOrder API:\n", json.dumps(payload, indent=2))
+    st.warning("Preparing to make version update request...")
+    st.text(json.dumps(payload, indent=2))  # Log the actual payload
     response = requests.post(endpoint, headers=auth_header, json=payload)
     print("RESPONSE STATUS:", response.status_code)
     print("RESPONSE TEXT:", response.text)
@@ -379,9 +381,9 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
             error_text = response.json().get("Error", response.text)
         except Exception:
             error_text = response.text
-
+        st.error(f"Version update error: {error_text}")
         error_email.add_to_body(orders.order_id, error_text)
-
+        write_to_log(f"Change version failed for {orders.order_id}:\n{error_text}")
         # Marks that there was an error and to send an email
         error_email.hasError = True
 
