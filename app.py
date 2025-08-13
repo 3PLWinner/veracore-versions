@@ -223,7 +223,7 @@ class Orders:
 
         return json.dumps({
             "orderId" : self.order_id,
-            "warehouseId" : "3plwhs",
+            "warehouseId" : "VSW335",
             "holdShippingOrder" : False,
             "products" : products
         })
@@ -338,7 +338,7 @@ def get_auth(user :str, passw : str):
     body = {
         "userName" : user,
         "password" : passw,
-        "systemId" : "cus327"
+        "systemId" : "VSO335"
     }
 
     response = requests.post(endpoint, data=body)
@@ -364,7 +364,7 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 
     payload = {
         "orderId": orders.order_id,
-        "warehouseId": "3plwhs",
+        "warehouseId": "VSW335",
         "holdShippingOrder": False,
         "products": orders.versions
     }
@@ -375,7 +375,7 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
     st.subheader("VeraCore API Response")
     st.text(f"Status Code: {response.status_code}")
     st.code(response.text, language='json')  # Use .code for formatting, or .text for raw outpu
-    
+
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
         error_email.add_offers(orders.offers)
