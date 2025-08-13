@@ -30,8 +30,11 @@ reporting_id = os.getenv("USER")
 inbox_id = os.getenv("INBOX_FOLDER")
 
 # VeraCore Web User/Pass/System
-veracore_id = os.getenv("VERACORE_USER")
-veracore_pass = os.getenv("VERACORE_PASS")
+#veracore_id = os.getenv("VERACORE_USER")
+#veracore_pass = os.getenv("VERACORE_PASS")
+
+veracore_id = "testpantco"
+veracore_pass = "pantco"
 
 # Converts date to a string VeraCore can use
 def convert_date(date_string: str):
@@ -223,7 +226,7 @@ class Orders:
 
         return json.dumps({
             "orderId" : self.order_id,
-            "warehouseId" : "3plwhs",
+            "warehouseId" : "VSW335",
             "holdShippingOrder" : False,
             "products" : products
         })
@@ -338,7 +341,7 @@ def get_auth(user :str, passw : str):
     body = {
         "userName" : user,
         "password" : passw,
-        "systemId" : "CUS327"
+        "systemId" : "VSO335"
     }
 
     response = requests.post(endpoint, data=body)
@@ -364,7 +367,7 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 
     payload = {
         "orderId": orders.order_id,
-        "warehouseId": "3plwhs",
+        "warehouseId": "VSW335",
         "holdShippingOrder": False,
         "products": orders.versions
     }
