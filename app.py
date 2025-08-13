@@ -224,7 +224,7 @@ class Orders:
 
         return json.dumps({
             "orderId" : self.order_id,
-            "warehouseId" : "VSW335",
+            "warehouseId" : "3plwhs",
             "holdShippingOrder" : False,
             "products" : products
         })
@@ -339,7 +339,7 @@ def get_auth(user :str, passw : str):
     body = {
         "userName" : user,
         "password" : passw,
-        "systemId" : "VSO335"
+        "systemId" : "CUS327"
     }
 
     response = requests.post(endpoint, data=body)
@@ -365,7 +365,7 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 
     payload = {
         "orderId": orders.order_id,
-        "warehouseId": "VSW335",
+        "warehouseId": "3plwhs",
         "holdShippingOrder": False,
         "products": orders.versions
     }
