@@ -30,11 +30,9 @@ reporting_id = os.getenv("USER")
 inbox_id = os.getenv("INBOX_FOLDER")
 
 # VeraCore Web User/Pass/System
-#veracore_id = os.getenv("VERACORE_USER")
-#veracore_pass = os.getenv("VERACORE_PASS")
+veracore_id = os.getenv("VERACORE_USER")
+veracore_pass = os.getenv("VERACORE_PASS")
 
-veracore_id = "testpantco"
-veracore_pass = "pantco"
 
 # Converts date to a string VeraCore can use
 def convert_date(date_string: str):
