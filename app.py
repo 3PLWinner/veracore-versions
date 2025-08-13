@@ -223,7 +223,7 @@ class Orders:
 
         return json.dumps({
             "orderId" : self.order_id,
-            "warehouseId" : "VSW335",
+            "warehouseId" : "3plwhs",
             "holdShippingOrder" : False,
             "products" : products
         })
@@ -364,7 +364,7 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
 
     payload = {
         "orderId": orders.order_id,
-        "warehouseId": "VSW335",
+        "warehouseId": "3plwhs",
         "holdShippingOrder": False,
         "products": orders.versions
     }
