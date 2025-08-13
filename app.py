@@ -338,7 +338,7 @@ def get_auth(user :str, passw : str):
     body = {
         "userName" : user,
         "password" : passw,
-        "systemId" : "VSO335"
+        "systemId" : "CUS327"
     }
 
     response = requests.post(endpoint, data=body)
