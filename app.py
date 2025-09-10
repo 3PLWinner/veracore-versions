@@ -160,18 +160,14 @@ class Orders:
     def generate_order_xml(self):
         offer_string, purchase_order_string = self.private_generate_offer_xml()
         
-       # order_type = self.offers[0][14] if len(self.offers[0]) > 14 else ""
-       # classification_xml = f"""<Classification>
-       #                     <Stream>
-       #                         <Description>{generate_escaped(order_type)}</Description>
-       #                     </Stream>
-       #                 </Classification>"""
-        
-        classification_xml = """<Classification>
+        order_type = self.offers[0][14] if len(self.offers[0]) > 14 else ""
+        classification_xml = f"""<Classification>
                             <Stream>
-                                <Description>B2B</Description>
+                                <Description>{generate_escaped(order_type)}</Description>
                             </Stream>
                         </Classification>"""
+        
+
         
         return f"""<?xml version="1.0" encoding="utf-8"?>
         <soap:Envelope
