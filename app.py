@@ -159,10 +159,17 @@ class Orders:
     # Generates XML needed for VeraCore SOAP API Add Orders endpoint
     def generate_order_xml(self):
         offer_string, purchase_order_string = self.private_generate_offer_xml()
-        order_type = self.offers[0][14] if len(self.offers[0]) > 14 else ""
-        classification_xml = f"""<Classification>
+        
+       # order_type = self.offers[0][14] if len(self.offers[0]) > 14 else ""
+       # classification_xml = f"""<Classification>
+       #                     <Stream>
+       #                         <Description>{generate_escaped(order_type)}</Description>
+       #                     </Stream>
+       #                 </Classification>"""
+        
+        classification_xml = """<Classification>
                             <Stream>
-                                <Description>{generate_escaped(order_type)}</Description>
+                                <Description>B2B</Description>
                             </Stream>
                         </Classification>"""
         
@@ -546,7 +553,7 @@ result = app.acquire_token_for_client(scopes=[scope])
 
 # Create auth header
 masl_auth_header = {
-    "Authorization" : f"Bearer {result["access_token"]}",
+    "Authorization" : f"Bearer {result['access_token']}",
     "Content-Type" : "application/json"
 }
 
