@@ -99,13 +99,12 @@ class Orders:
     offers = []
     purchase_orders = []
     
-    def __init__(self, user : str, passw, order_id= None, version=None, order_type=None):
+    def __init__(self, user : str, passw, order_id= None, version=None):
         self.order_id : str= order_id
         self.offers = []
         self.version = version
         self.user_id = user
         self.password = passw
-        self.order_type = order_type
 
     def add_to_offers(self, offer):
         self.offers.append(offer)
@@ -159,13 +158,7 @@ class Orders:
     # Generates XML needed for VeraCore SOAP API Add Orders endpoint
     def generate_order_xml(self):
         offer_string, purchase_order_string = self.private_generate_offer_xml()
-        
-        order_type = self.offers[0][14] if len(self.offers[0]) > 14 else ""
-        classification_xml = f"""<Classification>
-                            <Stream>
-                                <Description>{generate_escaped(order_type)}</Description>
-                            </Stream>
-                        </Classification>"""
+    
         
 
         
@@ -193,7 +186,6 @@ class Orders:
                         </Header>
                         <Money></Money>
                         <Payment></Payment>
-                        {classification_xml}
                         <OrderedBy>
                             <CompanyName>{generate_escaped(self.offers[0][1])}</CompanyName>
                             <Address1>{generate_escaped(self.offers[0][2])}</Address1>
@@ -369,7 +361,7 @@ def get_auth(user :str, passw : str):
     return (auth_header, True)
 
 def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error_obj : ErrorObject):
-    st.warning(f"Calling change_version for order {orders.order_id}")
+    #st.warning(f"Calling change_version for order {orders.order_id}")
     auth_header["Content-Type"] = "application/json"
 
     endpoint = 'https://wms.3plwinner.com/VeraCore/Public.Api/api/ShippingOrder'
@@ -461,7 +453,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
     order_tuples = api_df.itertuples()
 
     # Create the first Orders object
-    orders = Orders(user_id,passer,None, order_type=order_type)
+    orders = Orders(user_id,passer,None)
 
     # Create an error email
     error_email = ErrorEmail()
@@ -479,7 +471,7 @@ def submit_orders(uploaded_df, error_obj : ErrorObject):
             create_orders(orders,error_email, error_obj)
 
             # Create new orders object after creating order
-            orders = Orders(user_id,passer,order[0], order_type=order_type)
+            orders = Orders(user_id,passer,order[0])
             orders.add_to_offers(order)
         
     create_orders(orders, error_email, error_obj)
@@ -559,7 +551,7 @@ st.text("1. Provide your web user credentials")
 # Web User Credentials 
 user_id = st.text_input("Web User ID")
 passer = st.text_input("Web User Pass", type="password")
-order_type = st.selectbox("Select Order Stream", ["B2B", "B2C"], index=0)
+
 # Generate error if they have not submitted credentials
 if user_id == "" or passer == "":
     st.text("")
@@ -597,7 +589,6 @@ headers = ['Order ID', 'Company Name', 'Address 1', 'Address 2', 'Address 3',
 
 st.table(headers)
 
-st.info("Order Type should be either 'B2B' or 'B2C'.")
 
 st.text("")
 st.text("")
@@ -634,7 +625,6 @@ if not(uploaded_file == None):
         order_df = uploaded_df[["Order ID", "Offer ID", "Version", "Quantity"]]
         st.text("Summarized Order Upload")
         st.dataframe(order_df)
-        st.info(f"All orders in this batch will be classified as: {order_type}")
         st.text("")
         st.text("")
         st.text("")
