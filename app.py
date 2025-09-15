@@ -372,13 +372,13 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
         "holdShippingOrder": False,
         "products": orders.versions
     }
-    #st.subheader("VeraCore ShippingOrder API Request Payload")
-    #st.code(json.dumps(payload, indent=2), language='json')
+    st.subheader("VeraCore ShippingOrder API Request Payload")
+    st.code(json.dumps(payload, indent=2), language='json')
 
     response = requests.post(endpoint, headers=auth_header, json=payload)
-    #st.subheader("VeraCore API Response")
-    #st.text(f"Status Code: {response.status_code}")
-    #st.code(response.text, language='json')  # Use .code for formatting, or .text for raw outpu
+    st.subheader("VeraCore API Response")
+    st.text(f"Status Code: {response.status_code}")
+    st.code(response.text, language='json')  # Use .code for formatting, or .text for raw outpu
 
     if not(response.status_code == 200):
         # If error we want to add the offers to the error email
@@ -407,6 +407,9 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
     }
 
     response = requests.post("https://rhu335.veracore.com/pmomsws/OMS.asmx", headers=headers, data=orders.generate_order_xml())
+
+    st.text(f"Status Code: {response.status_code}")
+    st.code(response.text, language='xml')
 
     if response.status_code > 299:
         # If error, we want to add the offers to the error email
