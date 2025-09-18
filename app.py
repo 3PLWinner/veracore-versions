@@ -190,9 +190,8 @@ class Orders:
                             <OrderVariable>
                                 <VariableField>
                                     <FieldName>Order Type</FieldName>
-                                    <Value>true</Value>
-                                    <ValueDescription>B2B</ValueDescription>
                                 </VariableField>
+                                <Value>B2B</Value>
                             </OrderVariable>
                         </OrderVariables>
                         <OrderedBy>
