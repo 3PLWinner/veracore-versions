@@ -381,8 +381,8 @@ def change_version(orders : Orders, error_email : ErrorEmail, auth_header, error
         "holdShippingOrder": False,
         "products": orders.versions
     }
-    st.subheader("VeraCore ShippingOrder API Request Payload")
-    st.code(json.dumps(payload, indent=2), language='json')
+    #st.subheader("VeraCore ShippingOrder API Request Payload")
+    #st.code(json.dumps(payload, indent=2), language='json')
 
     response = requests.post(endpoint, headers=auth_header, json=payload)
     st.subheader("VeraCore API Response")
