@@ -416,8 +416,8 @@ def create_orders(orders: Orders, error_email : ErrorEmail, error_obj: ErrorObje
 
     response = requests.post("https://rhu335.veracore.com/pmomsws/OMS.asmx", headers=headers, data=orders.generate_order_xml())
 
-    st.text(f"Status Code: {response.status_code}")
-    st.code(response.text, language='xml')
+    #st.text(f"Status Code: {response.status_code}")
+    #st.code(response.text, language='xml')
 
     if response.status_code > 299:
         # If error, we want to add the offers to the error email
