@@ -191,7 +191,8 @@ class Orders:
                                 <VariableField>
                                     <FieldName>Order Type</FieldName>
                                 </VariableField>
-                                <Value>B2B</Value>
+                                <Value>True</Value>
+                                <ValueDescription>B2B</ValueDescription>
                             </OrderVariable>
                         </OrderVariables>
                         <OrderedBy>
