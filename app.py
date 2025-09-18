@@ -186,11 +186,15 @@ class Orders:
                         </Header>
                         <Money></Money>
                         <Payment></Payment>
-                        <Classification>
-                            <Stream>
-                                <Description>B2B</Description>
-                            </Stream>
-                        </Classification>
+                        <OrderVariables>
+                            <OrderVariable>
+                                <VariableField>
+                                    <FieldName>Order Type</FieldName>
+                                    <Value>true</Value>
+                                    <ValueDescription>B2B</ValueDescription>
+                                </VariableField>
+                            </OrderVariable>
+                        </OrderVariables>
                         <OrderedBy>
                             <CompanyName>{generate_escaped(self.offers[0][1])}</CompanyName>
                             <Address1>{generate_escaped(self.offers[0][2])}</Address1>
