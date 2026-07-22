@@ -192,7 +192,7 @@ class Orders:
                                     <FieldName>Order Type</FieldName>
                                 </VariableField>
                                 <Value>True</Value>
-                                <ValueDescription>B2B</ValueDescription>
+                                <ValueDescription>PANTCO</ValueDescription>
                             </OrderVariable>
                         </OrderVariables>
                         <OrderedBy>
