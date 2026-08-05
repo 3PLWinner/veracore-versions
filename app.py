@@ -95,13 +95,22 @@ def process_df(df):
         
 # Orders class to generate XML API calls to VeraCore
 class Orders:
-    versions = []
-    offers = []
-    purchase_orders = []
     
     def __init__(self, user : str, passw, order_id= None, version=None):
         self.order_id : str= order_id
         self.offers = []
+        # FIX: versions/purchase_orders were previously class-level attributes.
+        # Because they were never re-initialized as instance attributes here,
+        # every Orders() object created during a single "Submit" run shared the
+        # SAME purchase_orders list. Once one order's Reference # had been added
+        # to that shared list, every later order in the same batch that reused
+        # the same Reference # (e.g. the same PO number split across several
+        # ship-to's) got skipped as a "duplicate" and shipped with a BLANK
+        # Reference Number on its pick slip. Making these instance attributes
+        # (self.versions / self.purchase_orders) means each order gets its own
+        # fresh list, exactly as intended.
+        self.versions = []
+        self.purchase_orders = []
         self.version = version
         self.user_id = user
         self.password = passw
@@ -142,15 +151,24 @@ class Orders:
 
             self.versions.append(version_json)
 
-            # Adds all the purchase order numbers to one string
-            if not(offer[12] in self.purchase_orders) and len(purchase_order_string) <= 50:
-                
-                if index == len(self.offers)-1:
-                    purchase_order_string += str(offer[12])
-                else:
-                    purchase_order_string += str(offer[12]) + ","
-                
-                self.purchase_orders.append(offer[12])
+            # Adds all the purchase order numbers to one string, staying under
+            # VeraCore's 50-character ReferenceNumber limit.
+            # FIX: the old check (`len(purchase_order_string) <= 50`) measured
+            # the string's length BEFORE adding the next PO number, so it could
+            # still push the total past 50 chars (this is the same pattern that
+            # previously caused a real "ORDERS_RefNo must be 50 characters or
+            # less" failure). It also always appended a trailing comma unless
+            # the offer happened to be the LAST one in the list -- but if that
+            # last offer's PO number was itself a duplicate and got skipped, the
+            # string was left with a dangling trailing comma. This version
+            # checks the PROJECTED length before adding, and only inserts a
+            # comma when it's actually appending a second (or later) value.
+            po_number = str(offer[12])
+            if po_number not in self.purchase_orders:
+                addition = po_number if purchase_order_string == "" else "," + po_number
+                if len(purchase_order_string) + len(addition) <= 50:
+                    purchase_order_string += addition
+                    self.purchase_orders.append(offer[12])
         
 
         return offer_string, purchase_order_string
